@@ -98,7 +98,7 @@ public class FanLeafProgressBar extends FrameLayout {
 		final float bottomY = bar.getCurrentProgressHRange()[1];
 		final float range = new Random(SystemClock.elapsedRealtime()).nextFloat() *
 							(-2 * (bottomY - topY)) - bottomY;
-		PropertyValuesHolder tY = PropertyValuesHolder.ofFloat("translationY", 0f, range);
+		PropertyValuesHolder tY = PropertyValuesHolder.ofFloat("translationY", 0f, 0f);
 		tY.setEvaluator(new Sin(leaf, bar.getCurrentProgressX()));
 
 		ObjectAnimator sinAnimator = ObjectAnimator.ofPropertyValuesHolder(leaf, tX, tY);
@@ -171,7 +171,7 @@ public class FanLeafProgressBar extends FrameLayout {
 			final float w = (float) ((5 * Math.PI) / (2 * Math.round(bar.getCurrentProgressX())));
 			final float offset = (endValue - startValue) /** fraction*/;
 			final float result = startValue + amplitude * (float) Math.sin(
-					w * leaf.getTranslationX() + 3 * Math.PI / 2) + offset;
+					w * leaf.getTranslationX() - Math.PI / 2) + bar.getBarHeight() / 2/*offset*/;
 			return result;
 		}
 	}
