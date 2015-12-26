@@ -15,9 +15,9 @@ import android.os.Looper;
 import android.os.Message;
 import android.os.SystemClock;
 import android.util.AttributeSet;
-import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
+import android.view.animation.AccelerateInterpolator;
 import android.view.animation.DecelerateInterpolator;
 import android.view.animation.LinearInterpolator;
 import android.widget.FrameLayout;
@@ -61,7 +61,6 @@ public class FanLeafProgressBar extends FrameLayout {
 	}
 
 	public void startLoading() {
-		Log.d("ZT", "start loading");
 		ui.removeMessages(UI.MSG_CHECK_MEASURED);
 		Message message = ui.obtainMessage(UI.MSG_CHECK_MEASURED, this);
 		message.sendToTarget();
@@ -92,52 +91,78 @@ public class FanLeafProgressBar extends FrameLayout {
 	}
 
 	private void initLeafAnimator(final ImageView leaf) {
-		PropertyValuesHolder tX = PropertyValuesHolder.ofFloat("translationX", 0f,
-															   bar.getCurrentProgressX());
-		final float topY = bar.getCurrentProgressHRange()[0];
-		final float bottomY = bar.getCurrentProgressHRange()[1];
-		final float range = new Random(SystemClock.elapsedRealtime()).nextFloat() *
-							(-2 * (bottomY - topY)) - bottomY;
-		PropertyValuesHolder tY = PropertyValuesHolder.ofFloat("translationY", 0f, 0f);
-		tY.setEvaluator(new Sin(leaf, bar.getCurrentProgressX()));
-
-		ObjectAnimator sinAnimator = ObjectAnimator.ofPropertyValuesHolder(leaf, tX, tY);
-		sinAnimator.setDuration(3000);
-		sinAnimator.setInterpolator(new DecelerateInterpolator());
-
-		final int rotateCount = new Random(System.nanoTime()).nextInt(7) + 1;
-		ObjectAnimator rotation = ObjectAnimator.ofFloat(leaf, "rotation", 0f, (float)(rotateCount * 180));
-		rotation.setDuration(3000);
-		rotation.setInterpolator(new DecelerateInterpolator());
+		final Animator leafAnimation = getLeafAnimator(leaf);
+		final Animator rotation = getLeafRotateAnimator(leaf);
 
 		final int costTime = new Random(System.nanoTime()).nextInt(6) * 200;
-		ObjectAnimator alpha = ObjectAnimator.ofFloat(leaf, "alpha", 0f, 1f);
-		alpha.setDuration(costTime);
-		alpha.setInterpolator(new LinearInterpolator());
+		final Animator appear = getLeafAppearAnimator(leaf, costTime);
+		final Animator disappear = getLeafDisappearAnimator(leaf, costTime);
 
-		final ObjectAnimator disappear = ObjectAnimator.ofFloat(leaf, "alpha", 1f, 0f);
-		disappear.setDuration(costTime);
-		disappear.setInterpolator(new LinearInterpolator());
+		rotation.addListener(new AnimatorListenerAdapter() {
+			@Override
+			public void onAnimationEnd(Animator animation) {
+				disappear.start();
+				animation.removeAllListeners();
+			}
+		});
 		disappear.addListener(new AnimatorListenerAdapter() {
 			@Override
 			public void onAnimationEnd(Animator animation) {
 				leaf.setVisibility(View.GONE);
 				removeView(leaf);
 				animation.removeAllListeners();
-			}
-		});
-		rotation.addListener(new AnimatorListenerAdapter() {
-			@Override
-			public void onAnimationEnd(Animator animation) {
-				disappear.start();
-				animation.removeAllListeners();
-
+				bar.startLoading();
 			}
 		});
 
 		AnimatorSet set = new AnimatorSet();
-		set.playTogether(sinAnimator, rotation, alpha);
+		set.playTogether(leafAnimation, rotation, appear);
 		set.start();
+	}
+
+	private Animator getLeafAnimator(final ImageView leaf) {
+		PropertyValuesHolder tX = getLeafXDirectionAnimator();
+		PropertyValuesHolder tY = getLeafYDirectionAnimator(leaf);
+		ObjectAnimator sinAnimator = ObjectAnimator.ofPropertyValuesHolder(leaf, tX, tY);
+		sinAnimator.setDuration(3000);
+		sinAnimator.setInterpolator(new DecelerateInterpolator());
+		return sinAnimator;
+	}
+
+	private PropertyValuesHolder getLeafXDirectionAnimator() {
+		return PropertyValuesHolder.ofFloat("translationX", 0f, bar.getCurrentProgressX());
+	}
+
+	private PropertyValuesHolder getLeafYDirectionAnimator(final ImageView leaf) {
+		final float topY = bar.getCurrentProgressHRange()[0];
+		final float bottomY = bar.getCurrentProgressHRange()[1];
+		final float range = new Random(SystemClock.elapsedRealtime()).nextFloat() *
+							(-2 * (bottomY - topY)) - bottomY;
+		PropertyValuesHolder tY = PropertyValuesHolder.ofFloat("translationY", 0f, 0f);
+		tY.setEvaluator(new Sin(leaf, bar.getCurrentProgressX()));
+		return tY;
+	}
+
+	private Animator getLeafAppearAnimator(final ImageView leaf, final int costTime) {
+		ObjectAnimator appear = ObjectAnimator.ofFloat(leaf, "alpha", 0f, 1f);
+		appear.setDuration(costTime);
+		appear.setInterpolator(new LinearInterpolator());
+		return appear;
+	}
+
+	private Animator getLeafDisappearAnimator(final ImageView leaf, final int costTime) {
+		final ObjectAnimator disappear = ObjectAnimator.ofFloat(leaf, "alpha", 1f, 0f);
+		disappear.setDuration(costTime);
+		disappear.setInterpolator(new AccelerateInterpolator());
+		return disappear;
+	}
+
+	private Animator getLeafRotateAnimator(final ImageView leaf) {
+		final int rotateCount = new Random(System.nanoTime()).nextInt(7) + 1;
+		ObjectAnimator rotation = ObjectAnimator.ofFloat(leaf, "rotation", 0f, (float)(rotateCount * 180));
+		rotation.setDuration(3000);
+		rotation.setInterpolator(new DecelerateInterpolator());
+		return rotation;
 	}
 
 	private void setRepeat() {
