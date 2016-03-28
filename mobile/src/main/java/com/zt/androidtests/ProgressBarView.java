@@ -13,6 +13,8 @@ import android.util.AttributeSet;
 import android.util.Log;
 import android.view.View;
 
+import java.util.concurrent.atomic.AtomicBoolean;
+
 public class ProgressBarView extends View {
 	private boolean isHasFocused;
 	private boolean isMeasured;
@@ -22,6 +24,9 @@ public class ProgressBarView extends View {
 	private ProgressBarDrawHelper drawHelper;
 	private int drawCostThisTime;
 	private int progress;
+	private IProgressBarListener listener;
+	private AtomicBoolean isLoad;
+	private int step;
 
 	public ProgressBarView(Context context) {
 		super(context);
@@ -47,7 +52,9 @@ public class ProgressBarView extends View {
 	private void init() {
 		drawHelper = new ProgressBarDrawHelper(getResources());
 		updateHandler = new UpdateHandler();
-		progress = -1;
+		progress = 0;
+		isLoad = new AtomicBoolean(false);
+		step = 50;
 	}
 
 	@Override
@@ -90,15 +97,14 @@ public class ProgressBarView extends View {
 		args.setRightCircle(
 				new ProgressBarArgs.CircleF(radius, tempWidth - radius, radius));
 		args.setRectPartOfBar(new RectF(radius, 0, tempWidth - radius, tempHeight));
-		args.setProgressStep(
-				(args.wholeBar.right - args.rightCircle.radius) /
-				100);
+		args.setProgressStep((args.wholeBar.width() - args.leftCircle.radius) / 100);
 		args.setDirtyOffset(-1);
 		return args;
 	}
 
 	public void startLoading() {
-		callUpdateDelay(drawCostThisTime);
+		isLoad.set(true);
+		callUpdate();
 	}
 
 	public boolean isMeasured() {
@@ -117,6 +123,10 @@ public class ProgressBarView extends View {
 		return ProgressBarArgs.getInstance().wholeBar.height();
 	}
 
+	public void setListener(IProgressBarListener listener) {
+		this.listener = listener;
+	}
+
 	@Override
 	protected void onDraw(Canvas canvas) {
 		super.onDraw(canvas);
@@ -127,7 +137,7 @@ public class ProgressBarView extends View {
 		drawProgressBar(canvas);
 		updateProgress(canvas);
 		drawCostThisTime = (int) (SystemClock.elapsedRealtime() - drawStart);
-//		callUpdateDelay(drawCostThisTime);
+//		invalidate();
 	}
 
 	private void drawProgressBar(Canvas canvas) {
@@ -137,23 +147,27 @@ public class ProgressBarView extends View {
 	}
 
 	private void updateProgress(Canvas canvas) {
-		if (100 > progress) {
-			progress += 1;
-			drawHelper.updateProgress(progress);
+		if (isLoad.get()) {
+			if (100 > progress) {
+				progress += step;
+			} else {
+				isLoad.set(false);
+			}
 		}
+		drawHelper.updateProgress(progress);
 		drawHelper.drawProgressInRightHalfCirclePart(canvas);
 		drawHelper.drawProgressInRectPart(canvas);
 	}
 
-	private void callUpdateDelay(int delay) {
-		Message msg = updateHandler.obtainMessage();
+	private void callUpdate() {
+		Message msg = updateHandler.obtainMessage(UpdateHandler.MSG_VALIDATE);
 		msg.obj = ProgressBarView.this;
-		msg.arg1 = 16 - delay;
 		msg.sendToTarget();
 	}
 
 	private static final class UpdateHandler extends Handler {
-		public static final int MSG_UPDATE = 0x01;
+		public static final int MSG_VALIDATE = 0x01;
+		public static final int MSG_END = 0x02;
 
 		public UpdateHandler() {
 			super(Looper.getMainLooper());
@@ -161,9 +175,16 @@ public class ProgressBarView extends View {
 
 		@Override
 		public void handleMessage(Message msg) {
-			final ProgressBarView view = (ProgressBarView) msg.obj;
-			final int delay = msg.arg1;
-			view.postInvalidateDelayed(delay);
+			final int what = msg.what;
+			if (MSG_VALIDATE == what) {
+				final ProgressBarView view = (ProgressBarView) msg.obj;
+				view.invalidate();
+			} else if (MSG_END == what) {
+				final IProgressBarListener listener = (IProgressBarListener) msg.obj;
+				if (null != listener) {
+					listener.onProgressEnd();
+				}
+			}
 		}
 	}
 

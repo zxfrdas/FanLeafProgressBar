@@ -73,7 +73,7 @@ public class FanLeafProgressBar extends FrameLayout {
 
 		initLeafAnimator(createLeaf());
 
-		setRepeat();
+//		setRepeat();
 	}
 
 	private ImageView createLeaf() {
@@ -115,7 +115,7 @@ public class FanLeafProgressBar extends FrameLayout {
 			}
 		});
 
-		AnimatorSet set = new AnimatorSet();
+		final AnimatorSet set = new AnimatorSet();
 		set.playTogether(leafAnimation, rotation, appear);
 		set.start();
 	}

@@ -5,6 +5,7 @@ import android.graphics.Canvas;
 import android.graphics.Paint;
 import android.graphics.RectF;
 import android.graphics.Region;
+import android.util.Log;
 
 public final class ProgressBarDrawHelper {
 	private ProgressBarArgs args;
@@ -44,6 +45,7 @@ public final class ProgressBarDrawHelper {
 
 	public void updateProgress(int progress) {
 		widthOfProgress = progress * args.progressStep;
+		Log.d("ZT", "updateProgress, progress = " + progress + ", widthOfProgress = " + widthOfProgress);
 		if (widthOfProgress <= args.rightCircle.radius) {
 			float rightCircleMaskLength = (float) (2 * Math.sqrt(
 					Math.pow(args.rightCircle.radius, 2) -
@@ -75,6 +77,7 @@ public final class ProgressBarDrawHelper {
 		if (widthOfProgress <= args.rightCircle.radius) {
 			return;
 		}
+		Log.d("ZT", "wholebar.right = " + args.wholeBar.right + ", widthofProgress = " + widthOfProgress);
 		canvas.drawRect(args.wholeBar.right - widthOfProgress, args.wholeBar.top,
 						args.rectPartOfBar.right, args.rectPartOfBar.bottom, orange);
 	}
